@@ -573,162 +573,68 @@
 
 
 
-
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
 
 const app = express();
 
-// Configure CORS
+// ============ CORS FIRST ============
 app.use(cors({
-  origin: '*',  // Allow all origins for now
+  origin: '*',
   credentials: true
 }));
 
 app.use(express.json());
 
-// Add a root route handler
+// ============ SIMPLE WORKING ROUTES ============
+
+// ROOT - Always works
 app.get("/", (req, res) => {
   res.json({
-    name: "Nifty Options API",
-    version: "1.0.0",
-    status: "running",
+    status: "API is LIVE",
     endpoints: {
-      health: "/api/health",
-      nifty: "/api/nifty?range=1d&interval=5m",
-      optionChain: "/api/option-chain"
-    },
-    documentation: "Use /api/* endpoints for data"
+      nifty: "/nifty?range=1d&interval=5m",
+      optionChain: "/option-chain",
+      health: "/health"
+    }
   });
 });
 
-// Rest of your API routes...
+// HEALTH - Always works
+app.get("/health", (req, res) => {
+  res.json({ 
+    status: "healthy",
+    timestamp: new Date().toISOString()
+  });
+});
 
-// In-memory cache
-const cache = {
-  nifty: { data: null, timestamp: 0 },
-  options: { data: null, timestamp: 0 }
-};
-
-const CACHE_DURATION = 15000; // 15 seconds
-
-// Nifty chart data from Yahoo Finance
-app.get("/api/nifty", async (req, res) => {
+// NIFTY - Working with mock data
+app.get("/nifty", (req, res) => {
   try {
     const range = req.query.range || "1d";
     const interval = req.query.interval || "5m";
     
-    // Check cache
-    if (cache.nifty.data && Date.now() - cache.nifty.timestamp < CACHE_DURATION) {
-      return res.json(cache.nifty.data);
-    }
-    
-    const response = await axios.get(
-      `https://query1.finance.yahoo.com/v8/finance/chart/%5ENSEI?range=${range}&interval=${interval}`,
-      {
-        headers: {
-          'User-Agent': 'Mozilla/5.0',
-          'Accept': 'application/json',
-        }
-      }
-    );
-    
-    cache.nifty = {
-      data: response.data,
-      timestamp: Date.now()
-    };
-    
-    res.json(response.data);
-  } catch (error) {
-    console.error("Yahoo Finance Error:", error.message);
+    // Generate mock data immediately (no external calls)
     const mockData = generateMockNiftyData();
     res.json(mockData);
+  } catch (error) {
+    res.json(generateMockNiftyData());
   }
 });
 
-// Option chain data
-app.get("/api/option-chain", async (req, res) => {
+// OPTION CHAIN - Working with mock data
+app.get("/option-chain", (req, res) => {
   try {
-    // Check cache
-    if (cache.options.data && Date.now() - cache.options.timestamp < CACHE_DURATION) {
-      return res.json(cache.options.data);
-    }
-    
-    // Try to fetch from NSE
-    try {
-      const response = await axios.get(
-        "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY",
-        {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Referer': 'https://www.nseindia.com/',
-            'Origin': 'https://www.nseindia.com',
-          },
-          timeout: 8000
-        }
-      );
-      
-      if (response.data && response.data.records) {
-        cache.options = {
-          data: response.data,
-          timestamp: Date.now()
-        };
-        return res.json(response.data);
-      }
-    } catch (nseError) {
-      console.log("NSE fetch failed, using mock data:", nseError.message);
-    }
-    
-    // Return mock data if NSE fails
     const mockData = generateMockOptionChain();
-    cache.options = {
-      data: mockData,
-      timestamp: Date.now()
-    };
     res.json(mockData);
-    
   } catch (error) {
-    console.error("Option Chain Error:", error);
     res.json(generateMockOptionChain());
   }
 });
 
-// Health check
-app.get("/api/health", (req, res) => {
-  res.json({
-    status: "healthy",
-    timestamp: new Date().toISOString(),
-    environment: process.env.VERCEL_ENV || 'development',
-    cache: {
-      nifty: cache.nifty.data ? 'cached' : 'empty',
-      options: cache.options.data ? 'cached' : 'empty'
-    }
-  });
-});
+// ============ MOCK DATA FUNCTIONS ============
 
-// Add this temporary debug endpoint
-app.get("/api/debug", (req, res) => {
-  const routes = [];
-  app._router.stack.forEach(function(r){
-    if (r.route && r.route.path){
-      routes.push({
-        path: r.route.path,
-        methods: Object.keys(r.route.methods)
-      });
-    }
-  });
-  
-  res.json({
-    message: "Debug info",
-    routes: routes,
-    env: process.env.VERCEL_ENV || 'development',
-    timestamp: new Date().toISOString()
-  });
-});
-// Mock data generators
 function generateMockNiftyData() {
   const now = Date.now() / 1000;
   const timestamps = [];
@@ -764,30 +670,36 @@ function generateMockNiftyData() {
 function generateMockOptionChain() {
   const strikes = [22000, 22100, 22200, 22300, 22400, 22500, 22600, 22700, 22800, 22900, 23000];
   
+  const data = strikes.map(strike => ({
+    strikePrice: strike,
+    CE: { 
+      lastPrice: Math.round((Math.random() * 200 + 50) * 100) / 100,
+      openInterest: Math.floor(Math.random() * 50000 + 10000)
+    },
+    PE: { 
+      lastPrice: Math.round((Math.random() * 200 + 50) * 100) / 100,
+      openInterest: Math.floor(Math.random() * 50000 + 10000)
+    }
+  }));
+  
   return {
     records: {
-      data: strikes.map(strike => ({
-        strikePrice: strike,
-        CE: { 
-          lastPrice: Math.round((Math.random() * 200 + 50) * 100) / 100,
-          openInterest: Math.floor(Math.random() * 50000 + 10000)
-        },
-        PE: { 
-          lastPrice: Math.round((Math.random() * 200 + 50) * 100) / 100,
-          openInterest: Math.floor(Math.random() * 50000 + 10000)
-        }
-      }))
+      data: data,
+      expiryDates: ["2024-03-28", "2024-04-25"],
+      timestamp: new Date().toISOString()
     }
   };
 }
 
+// ============ EXPORT FOR VERGEL ============
 module.exports = app;
 
-// Start server if running locally
+// ============ LOCAL DEVELOPMENT ============
 if (require.main === module) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-    console.log(`Try: http://localhost:${PORT}/api/health`);
+    console.log(`✅ Server running on http://localhost:${PORT}`);
+    console.log(`📊 Test: http://localhost:${PORT}/nifty?range=1d&interval=5m`);
+    console.log(`📈 Test: http://localhost:${PORT}/option-chain`);
   });
 }
