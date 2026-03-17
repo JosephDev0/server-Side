@@ -376,31 +376,234 @@
 
 
 
+// const express = require("express");
+// const axios = require("axios");
+// const cors = require("cors");
+
+// const app = express();
+
+// // Configure CORS for frontend
+// const allowedOrigins = [
+//   'http://localhost:5173',  // Vite default
+//   'http://localhost:3000',   // React default
+//   'https://your-frontend.vercel.app'  // Replace with your actual frontend URL
+// ];
+
+// app.use(cors({
+//   origin: function(origin, callback) {
+//     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+//       callback(null, true);
+//     } else {
+//       callback(new Error('Not allowed by CORS'));
+//     }
+//   },
+//   credentials: true
+// }));
+
+// app.use(express.json());
+
+// // In-memory cache
+// const cache = {
+//   nifty: { data: null, timestamp: 0 },
+//   options: { data: null, timestamp: 0 }
+// };
+
+// const CACHE_DURATION = 15000; // 15 seconds
+
+// // Nifty chart data from Yahoo Finance
+// app.get("/api/nifty", async (req, res) => {
+//   try {
+//     const range = req.query.range || "1d";
+//     const interval = req.query.interval || "5m";
+    
+//     // Check cache
+//     if (cache.nifty.data && Date.now() - cache.nifty.timestamp < CACHE_DURATION) {
+//       return res.json(cache.nifty.data);
+//     }
+    
+//     const response = await axios.get(
+//       `https://query1.finance.yahoo.com/v8/finance/chart/%5ENSEI?range=${range}&interval=${interval}`,
+//       {
+//         headers: {
+//           'User-Agent': 'Mozilla/5.0',
+//           'Accept': 'application/json',
+//         }
+//       }
+//     );
+    
+//     cache.nifty = {
+//       data: response.data,
+//       timestamp: Date.now()
+//     };
+    
+//     res.json(response.data);
+//   } catch (error) {
+//     console.error("Yahoo Finance Error:", error.message);
+//     const mockData = generateMockNiftyData();
+//     res.json(mockData);
+//   }
+// });
+
+// // Option chain data
+// app.get("/api/option-chain", async (req, res) => {
+//   try {
+//     // Check cache
+//     if (cache.options.data && Date.now() - cache.options.timestamp < CACHE_DURATION) {
+//       return res.json(cache.options.data);
+//     }
+    
+//     // Try to fetch from NSE
+//     try {
+//       const response = await axios.get(
+//         "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY",
+//         {
+//           headers: {
+//             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+//             'Accept': 'application/json, text/plain, */*',
+//             'Accept-Language': 'en-US,en;q=0.9',
+//             'Referer': 'https://www.nseindia.com/',
+//             'Origin': 'https://www.nseindia.com',
+//           },
+//           timeout: 8000
+//         }
+//       );
+      
+//       if (response.data && response.data.records) {
+//         cache.options = {
+//           data: response.data,
+//           timestamp: Date.now()
+//         };
+//         return res.json(response.data);
+//       }
+//     } catch (nseError) {
+//       console.log("NSE fetch failed, using mock data:", nseError.message);
+//     }
+    
+//     // Return mock data if NSE fails
+//     const mockData = generateMockOptionChain();
+//     cache.options = {
+//       data: mockData,
+//       timestamp: Date.now()
+//     };
+//     res.json(mockData);
+    
+//   } catch (error) {
+//     console.error("Option Chain Error:", error);
+//     res.json(generateMockOptionChain());
+//   }
+// });
+
+// // Health check
+// app.get("/api/health", (req, res) => {
+//   res.json({
+//     status: "healthy",
+//     timestamp: new Date().toISOString(),
+//     environment: process.env.VERCEL_ENV || 'development',
+//     cache: {
+//       nifty: cache.nifty.data ? 'cached' : 'empty',
+//       options: cache.options.data ? 'cached' : 'empty'
+//     }
+//   });
+// });
+
+// // Mock data generators
+// function generateMockNiftyData() {
+//   const now = Date.now() / 1000;
+//   const timestamps = [];
+//   const prices = [];
+//   let basePrice = 22000;
+  
+//   for (let i = 11; i >= 0; i--) {
+//     timestamps.push(now - (i * 300));
+//     basePrice += (Math.random() - 0.5) * 50;
+//     prices.push(Math.round(basePrice * 100) / 100);
+//   }
+  
+//   return {
+//     chart: {
+//       result: [{
+//         meta: {
+//           symbol: "^NSEI",
+//           regularMarketPrice: prices[prices.length - 1],
+//           previousClose: prices[prices.length - 2] || prices[prices.length - 1],
+//           chartPreviousClose: prices[prices.length - 2] || prices[prices.length - 1]
+//         },
+//         timestamp: timestamps,
+//         indicators: {
+//           quote: [{
+//             close: prices
+//           }]
+//         }
+//       }]
+//     }
+//   };
+// }
+
+// function generateMockOptionChain() {
+//   const strikes = [22000, 22100, 22200, 22300, 22400, 22500, 22600, 22700, 22800, 22900, 23000];
+  
+//   return {
+//     records: {
+//       data: strikes.map(strike => ({
+//         strikePrice: strike,
+//         CE: { 
+//           lastPrice: Math.round((Math.random() * 200 + 50) * 100) / 100,
+//           openInterest: Math.floor(Math.random() * 50000 + 10000)
+//         },
+//         PE: { 
+//           lastPrice: Math.round((Math.random() * 200 + 50) * 100) / 100,
+//           openInterest: Math.floor(Math.random() * 50000 + 10000)
+//         }
+//       }))
+//     }
+//   };
+// }
+
+// module.exports = app;
+
+// // Start server if running locally
+// if (require.main === module) {
+//   const PORT = process.env.PORT || 5000;
+//   app.listen(PORT, () => {
+//     console.log(`Server running on http://localhost:${PORT}`);
+//   });
+// }
+
+
+
+
+
+
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
 
 const app = express();
 
-// Configure CORS for frontend
-const allowedOrigins = [
-  'http://localhost:5173',  // Vite default
-  'http://localhost:3000',   // React default
-  'https://your-frontend.vercel.app'  // Replace with your actual frontend URL
-];
-
+// Configure CORS
 app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: '*',  // Allow all origins for now
   credentials: true
 }));
 
 app.use(express.json());
+
+// Add a root route handler
+app.get("/", (req, res) => {
+  res.json({
+    name: "Nifty Options API",
+    version: "1.0.0",
+    status: "running",
+    endpoints: {
+      health: "/api/health",
+      nifty: "/api/nifty?range=1d&interval=5m",
+      optionChain: "/api/option-chain"
+    },
+    documentation: "Use /api/* endpoints for data"
+  });
+});
+
+// Rest of your API routes...
 
 // In-memory cache
 const cache = {
@@ -566,5 +769,6 @@ if (require.main === module) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Try: http://localhost:${PORT}/api/health`);
   });
 }
