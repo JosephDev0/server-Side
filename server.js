@@ -709,6 +709,25 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+// Add this temporary debug endpoint
+app.get("/api/debug", (req, res) => {
+  const routes = [];
+  app._router.stack.forEach(function(r){
+    if (r.route && r.route.path){
+      routes.push({
+        path: r.route.path,
+        methods: Object.keys(r.route.methods)
+      });
+    }
+  });
+  
+  res.json({
+    message: "Debug info",
+    routes: routes,
+    env: process.env.VERCEL_ENV || 'development',
+    timestamp: new Date().toISOString()
+  });
+});
 // Mock data generators
 function generateMockNiftyData() {
   const now = Date.now() / 1000;
